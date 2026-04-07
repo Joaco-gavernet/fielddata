@@ -55,7 +55,88 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 
 ## Data Model
 
-### `users`
+```mermaid
+erDiagram
+    USERS ||--o{ FIELDS : owns
+    USERS ||--o{ WEATHER_ALERTS : configures
+    USERS ||--o{ NOTIFICATIONS : receives
+
+    FIELDS ||--o{ WEATHER_FORECASTS : has
+    FIELDS ||--o{ WEATHER_ALERTS : scopes
+    FIELDS ||--o{ NOTIFICATIONS : relates_to
+
+    WEATHER_ALERTS ||--|{ ALERT_VALIDITY_WINDOWS : defines
+    WEATHER_ALERTS ||--o{ NOTIFICATIONS : triggers
+
+    WEATHER_FORECASTS ||--o{ NOTIFICATIONS : generates
+
+    USERS {
+        int id PK
+        string name
+        string phone UK
+    }
+
+    FIELDS {
+        int id PK
+        int user_id FK
+        string name
+    }
+
+    WEATHER_FORECASTS {
+        int id PK
+        int field_id FK
+        datetime forecast_datetime
+        enum event_type
+        float probability_percent
+        float intensity_value
+    }
+
+    WEATHER_ALERTS {
+        int id PK
+        int user_id FK
+        int field_id FK
+        enum event_type
+        float probability_threshold_percent
+        float intensity_threshold_value
+        bool is_active
+    }
+
+    ALERT_VALIDITY_WINDOWS {
+        int id PK
+        int alert_id FK
+        enum kind
+        int relative_value
+        enum relative_unit
+        datetime start_datetime
+        datetime end_datetime
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int alert_id FK
+        int forecast_id FK
+        int user_id FK
+        int field_id FK
+        enum event_type
+        datetime forecast_datetime
+        string message
+    }
+```
+
+Relationship summary:
+
+- one `user` can own many `fields`
+- one `user` can configure many `weather_alerts`
+- one `user` can receive many `notifications`
+- one `field` can have many `weather_forecasts`
+- one `field` can have many `weather_alerts`
+- one `field` can be referenced by many `notifications`
+- one `weather_alert` must have one or more `alert_validity_windows`
+- one `weather_alert` can produce many `notifications`
+- one `weather_forecast` can produce many `notifications`
+
+<details>
+<summary><code>users</code></summary>
 
 - `id`
 - `name`
@@ -63,7 +144,10 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `created_at`
 - `updated_at`
 
-### `fields`
+</details>
+
+<details>
+<summary><code>fields</code></summary>
 
 - `id`
 - `user_id`
@@ -71,7 +155,10 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `created_at`
 - `updated_at`
 
-### `weather_forecasts`
+</details>
+
+<details>
+<summary><code>weather_forecasts</code></summary>
 
 - `id`
 - `field_id`
@@ -82,7 +169,10 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `created_at`
 - `updated_at`
 
-### `weather_alerts`
+</details>
+
+<details>
+<summary><code>weather_alerts</code></summary>
 
 - `id`
 - `user_id`
@@ -94,7 +184,10 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `created_at`
 - `updated_at`
 
-### `alert_validity_windows`
+</details>
+
+<details>
+<summary><code>alert_validity_windows</code></summary>
 
 - `id`
 - `alert_id`
@@ -106,7 +199,10 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `created_at`
 - `updated_at`
 
-### `notifications`
+</details>
+
+<details>
+<summary><code>notifications</code></summary>
 
 - `id`
 - `alert_id`
@@ -119,6 +215,13 @@ Alembic is intentionally **not** embedded inside the Postgres container. The mig
 - `trigger_intensity_value`
 - `message`
 - `created_at`
+
+</details>
+
+> [!NOTE]
+> Notifications are deduplicated by the pair `alert_id + forecast_id`.
+> If the worker re-evaluates alerts and matches the same forecast for the same alert again, the application does not insert a second notification row.
+> This prevents sending the same alert message twice for the same alert/forecast combination.
 
 ## API Endpoints
 
