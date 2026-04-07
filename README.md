@@ -27,6 +27,13 @@ A background worker evaluates stored forecasts against those alerts and persists
 - Notifications are deduplicated by `alert_id + forecast_id`.
 - Notifications are persisted in the database; no WhatsApp integration is implemented.
 
+> [!NOTE]
+> The distinction between relative and absolute validity windows is intentional.
+> Relative windows are always computed from the current evaluation time, not from the moment the alert was created.
+> They are meant for rolling "give me time to react" use cases such as "alert me if there will be frost in the next week" or "warn me if heavy rain is expected next month", regardless of when in the year that forecast appears.
+> Absolute windows fit fixed calendar periods such as a harvest week, a spray window, or a specific planned field intervention where alerts should only apply between two exact datetimes.
+
+
 ## Event Types
 
 Each event type has a predefined intensity unit and comparison rule.
@@ -51,7 +58,10 @@ There are also two one-off Compose services:
 - `migrate`: runs `alembic upgrade head`
 - `seed`: inserts the default demo user, fields, forecasts, and a sample alert
 
-Alembic is intentionally **not** embedded inside the Postgres container. The migration tooling runs from the application image, which is the standard practice because schema evolution belongs to the application, not the database server process.
+
+
+> [!NOTE]
+> Alembic is intentionally **not** embedded inside the Postgres container. The migration tooling runs from the application image, which is the standard practice because schema evolution belongs to the application, not the database server process.
 
 ## Data Model
 
@@ -382,7 +392,7 @@ python -m pytest tests/integration -q
 
 If `TEST_DATABASE_URL` is not set, the integration tests are skipped.
 
-## Notes And Assumptions
+## Comments
 
 - Forecast data is mocked through the bootstrap script.
 - Absolute validity windows must use timezone-aware datetimes with the `-03:00` offset.
