@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: fielddata
+      POSTGRES_USER: fielddata
+      POSTGRES_PASSWORD: fielddata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fielddata -d fielddata"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  migrate:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: docker
+      DATABASE_URL: postgresql+asyncpg://fielddata:fielddata@postgres:5432/fielddata
+      DEFAULT_USER_NAME: Demo User
+      DEFAULT_USER_PHONE: 5491100000000
+      ALERT_EVALUATION_CRON: "*/15 * * * *"
+      SEED_ON_STARTUP: "false"
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  seed:
+    build: .
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: docker
+      DATABASE_URL: postgresql+asyncpg://fielddata:fielddata@postgres:5432/fielddata
+      DEFAULT_USER_NAME: Demo User
+      DEFAULT_USER_PHONE: 5491100000000
+      ALERT_EVALUATION_CRON: "*/15 * * * *"
+      SEED_ON_STARTUP: "false"
+    command: ["python", "-m", "app.seeds.bootstrap"]
+    restart: "no"
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: docker
+      DATABASE_URL: postgresql+asyncpg://fielddata:fielddata@postgres:5432/fielddata
+      DEFAULT_USER_NAME: Demo User
+      DEFAULT_USER_PHONE: 5491100000000
+      ALERT_EVALUATION_CRON: "*/15 * * * *"
+      SEED_ON_STARTUP: "false"
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      APP_ENV: docker
+      DATABASE_URL: postgresql+asyncpg://fielddata:fielddata@postgres:5432/fielddata
+      DEFAULT_USER_NAME: Demo User
+      DEFAULT_USER_PHONE: 5491100000000
+      ALERT_EVALUATION_CRON: "*/15 * * * *"
+      SEED_ON_STARTUP: "false"
+    command: ["python", "-m", "app.workers.main"]
+
+volumes:
+  postgres_data:
