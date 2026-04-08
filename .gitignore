@@ -1,6 +1,5 @@
 __pycache__/
 .pytest_cache/
 .env
-.env.example
 questions.md
 /fielddata_weather_alerts.egg-info
