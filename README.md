@@ -287,6 +287,11 @@ Relationship summary:
 }
 ```
 
+> [!NOTE]
+> The current API allows deactivation through both `PATCH /alerts/{id}` and `DELETE /alerts/{id}`, which overlaps semantically.
+> The soft-delete choice itself is intentional to preserve alert history and linked notifications.
+> A cleaner version would reserve `PATCH` for configuration updates and keep `DELETE` exclusively for soft deletion.
+
 ## Running With Docker Compose
 
 ### Prerequisites
